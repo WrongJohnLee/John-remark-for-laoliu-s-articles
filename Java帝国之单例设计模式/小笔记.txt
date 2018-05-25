@@ -13,7 +13,7 @@
 							INSTANCE;
 							//doSomethind().....
 						}
-						编译成class文件，构造方法直接就是私有
+						编译成class文件，构造方法直接就是私有，并且禁止了反序列化(enum.class增加了readObject方法抛出异常，所以不能反序列化获取对象)，无法用发射调用(Class.newInstance()对enum.class类型判断抛出异常)
 						public enum SingletonC {
 							INSTANCE;
 
@@ -21,3 +21,78 @@
 
 							public void doSomethind() { /* compiled code */ }
 						}
+			懒汉式单例：第一种：public class SingletonLazy(){
+									private SingletonLazy(){}
+									private static SingletonLazy singleton;
+									public static SingletonLazy getInstance(){
+										if(singleton == null){
+											singleton = new SingletonLazy();
+										}
+										return singleton;
+									}
+								}
+			
+						jvm运行顺序:先执行getInstance(),再执行构造方法。线程不安全，因为如果高并发时，第一个线程执行构造方法时，还没初始化完成时，其他线程判断还是null，进而也执行构造方法，产生多个实例。
+						第二种：public class SingletonLazy(){
+									private SingletonLazy(){}
+									private static SingletonLazy singleton;
+									public syschronized static SingletonLazy getInstance(){
+										if(singleton == null){
+											singleton = new SingletonLazy();
+										}
+										return singleton;
+									}
+								}
+						jvm运行顺序：多线程进来的，抢到SingletonLazy.class的锁才能到getInstance方法，其他线程只能等待，线程安全。但是只能一个线程进入，如果是实例已经创建的话还要等待，不合理。
+						第三种：public class SingletonLazy(){
+									private SingletonLazy(){}
+									private static volatile SingletonLazy singleton;
+									public static SingletonLazy getInstance(){
+										if(singleton == null){
+											syschronized(SingletonLazy.class){
+												if(singleton == null){
+													singleton = new SingletonLazy();
+												}
+											}
+											
+										}
+										return singleton;
+									}
+								}
+						jvm运行顺序:多线程可以进入getInstance方法，如果不为null直接就返回，不会等待影响性能。------第一层检验
+									如果为null的话，再抢锁。如果多个线程都进入第一层为null判断，线程获得锁后对实例singleton初始化，释放锁后其他线程获得锁后再进入第二层null校验，不然也会对实例初始化。
+									volatile关键字在这里是防止jvm操作指令优化排序。
+											“我们假设线程一进入第二次检验之后就执行singleton = new SingletonLazy();操作，在这个操作中，JVM主要干了三件事
+											1、在堆空间里分配一部分空间；
+											2、执行SingletonLazy的构造方法进行初始化；
+											3、把singleton对象指向在堆空间里分配好的空间。
+											但是，当我们编译的时候，编译器在生成汇编代码的时候会对流程顺序进行优化。优化的结果是有可能按照1-2-3顺序执行，也可能按照1-3-2顺序执行。
+											我们知道，执行完3的时候就singleton对象就已经不为空了，如果是按照1-3-2的顺序执行，恰巧在执行到3的时候（还没执行2），突然跑来了一个线程，进来getInstance()方法之后判断singleton不为空就返回了singleton实例。
+											此时singleton实例虽不为空，但它还没执行构造方法进行初始化。又恰巧构造方法里面需要对某些参数进行初始化。后来闯进来的线程糊里糊涂对那些需要初始化的参数进行操作就有可能报错奔溃了。”
+									
+			饿汉式单例：第一种：public class SingletonQuick(){
+									//public static final String TYPE = "MP4";
+									private SingletonQuick(){}
+									private static final SingletonQuick singleton = new SingletonQuick();
+									public static SingletonQuick getInstance(){
+										return singleton;
+									}
+									
+								}
+			
+						jvm运行顺序:进来就执行构造方法，因为final修饰，singleton是不可改变的，static修饰，属于类，而不是对象。其他线程调用是去new，如果不为null是不能改变的。
+									但是如果我调用这个类的其他变量，而不是调用getInstance也会执行构造方法，浪费资源,比如SingletonQuick.TYPE。
+						第二种：public class SingletonQuick(){
+									//public static final String TYPE = "MP4";
+									private static final class SingletonQuickHolder{
+										private static final SingletonQuick INSTANCE = new SingletonQuick();
+									}
+									private SingletonQuick(){}
+									
+									public static SingletonQuick getInstance(){
+										return SingletonQuickHolder.INSTANCE;
+									}
+									
+								}
+						jvm运行顺序:当执行getInstance()方法的时候就去调用SingletonQuickHolder内部类里面的INSTANCE实例，此时SingletonQuickHolder内部类会被加载到内存里，在类加载的时候就对INSTANCE实例进行初始化。
+									和饿汉式一个道理，保证了只有一个实例，而且在调用getInstance()方法的时候才进行INSTANCE实例的初始化，又具有懒汉式的部分特性。
