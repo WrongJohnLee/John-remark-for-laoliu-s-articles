@@ -1,0 +1,23 @@
+链接：https://mp.weixin.qq.com/s/q7-GWt87S7uJ9NY-s1z4SA
+
+关键词概念：单例模式：第一、把构造方法设置为private的，不让别人new；第二、提供一个static方法给获取实例，在这个方法里面返回创建的实例。
+			懒汉式：判断是否为null在创建，线程不安全。高并发时，一个线程在创建时在new还没初始化完成时，另外一个线程在判断是否为null的时候，就会判断为null去new，结果会创建多个实例。
+			饿汉式：调用类时直接创建实例。实例设置为final，线程安全。
+			创建对象的方法：new；Class.forName(完整类名).newInstance();Class.forName(完整类名).getConstructor();------newInstance对enum类型直接抛出异常。
+							反序列化readObject()方法：ObjectInputStream in = new ObjectInputStream(new FileInputStream("data.obj"));Employee emp5 = (Employee) in.readObject();
+							类实现Cloneable接口，对象调用clone()方法复制。
+			枚举：每个变量都是static final。枚举序列化是由jvm保证的，每一个枚举类型和定义的枚举变量在JVM中都是唯一的，在枚举类型的序列化和反序列化上，Java做了特殊的规定：在序列
+				  化时Java仅仅是将枚举对象的name属性输出到结果中，反序列化的时候则是通过java.lang.Enum的valueOf方法来根据名字查找枚举对象。同时，编译器是不允许任何对这种序列化机
+				  制的定制的并禁用了writeObject、readObject、readObjectNoData、writeReplace和readResolve等方法，从而保证了枚举实例的唯一性。
+			枚举单例：public enum SingletonC {
+							INSTANCE;
+							//doSomethind().....
+						}
+						编译成class文件，构造方法直接就是私有
+						public enum SingletonC {
+							INSTANCE;
+
+							private SingletonC() { /* compiled code */ }
+
+							public void doSomethind() { /* compiled code */ }
+						}
